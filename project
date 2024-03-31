@@ -1,0 +1,277 @@
+news <- file("C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/en_US.news.txt", open="r")
+    news_text <- readLines(news); close(news)
+## Warning in readLines(news): incomplete final line found on 'C:/Users/HP/Desktop/
+## Grace R/Course 10/Coursera-SwiftKey/final/en_US/en_US.news.txt'
+    blogs <- file("C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/en_US.blogs.txt", open="r")
+    blogs_text <- readLines(blogs); close(blogs) 
+
+    twit<- file("C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/en_US.twitter.txt", open="r")
+    Twit_text <- readLines(twit); close(twit)
+## Warning in readLines(twit): line 167155 appears to contain an embedded nul
+## Warning in readLines(twit): line 268547 appears to contain an embedded nul
+## Warning in readLines(twit): line 1274086 appears to contain an embedded nul
+## Warning in readLines(twit): line 1759032 appears to contain an embedded nul
+library(ggplot2)
+library(plyr)
+library(magrittr)
+library(SnowballC)
+## Warning: package 'SnowballC' was built under R version 4.0.3
+library(stringr)
+library(stringi)
+library(tm)
+## Warning: package 'tm' was built under R version 4.0.3
+## Loading required package: NLP
+## Warning: package 'NLP' was built under R version 4.0.3
+## 
+## Attaching package: 'NLP'
+## The following object is masked from 'package:ggplot2':
+## 
+##     annotate
+library(tokenizers)
+## Warning: package 'tokenizers' was built under R version 4.0.3
+library(quanteda)
+## Warning: package 'quanteda' was built under R version 4.0.3
+## Package version: 2.1.2
+## Parallel computing: 2 of 8 threads used.
+## See https://quanteda.io for tutorials and examples.
+## 
+## Attaching package: 'quanteda'
+## The following objects are masked from 'package:tm':
+## 
+##     as.DocumentTermMatrix, stopwords
+## The following objects are masked from 'package:NLP':
+## 
+##     meta, meta<-
+## The following object is masked from 'package:utils':
+## 
+##     View
+library(rJava)
+## Warning: package 'rJava' was built under R version 4.0.3
+library(RWeka)
+## Warning: package 'RWeka' was built under R version 4.0.3
+library(parallel)
+library(R.utils)
+## Warning: package 'R.utils' was built under R version 4.0.3
+## Loading required package: R.oo
+## Warning: package 'R.oo' was built under R version 4.0.3
+## Loading required package: R.methodsS3
+## Warning: package 'R.methodsS3' was built under R version 4.0.3
+## R.methodsS3 v1.8.1 (2020-08-26 16:20:06 UTC) successfully loaded. See ?R.methodsS3 for help.
+## R.oo v1.24.0 (2020-08-26 16:11:58 UTC) successfully loaded. See ?R.oo for help.
+## 
+## Attaching package: 'R.oo'
+## The following object is masked from 'package:R.methodsS3':
+## 
+##     throw
+## The following object is masked from 'package:rJava':
+## 
+##     clone
+## The following object is masked from 'package:magrittr':
+## 
+##     equals
+## The following objects are masked from 'package:methods':
+## 
+##     getClasses, getMethods
+## The following objects are masked from 'package:base':
+## 
+##     attach, detach, load, save
+## R.utils v2.10.1 (2020-08-26 22:50:31 UTC) successfully loaded. See ?R.utils for help.
+## 
+## Attaching package: 'R.utils'
+## The following object is masked from 'package:magrittr':
+## 
+##     extract
+## The following object is masked from 'package:utils':
+## 
+##     timestamp
+## The following objects are masked from 'package:base':
+## 
+##     cat, commandArgs, getOption, inherits, isOpen, nullfile, parse,
+##     warnings
+library(dplyr)
+## 
+## Attaching package: 'dplyr'
+## The following objects are masked from 'package:plyr':
+## 
+##     arrange, count, desc, failwith, id, mutate, rename, summarise,
+##     summarize
+## The following objects are masked from 'package:stats':
+## 
+##     filter, lag
+## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union
+library(shiny)
+## 
+## Attaching package: 'shiny'
+## The following objects are masked from 'package:R.utils':
+## 
+##     setProgress, validate
+## The following object is masked from 'package:R.oo':
+## 
+##     printStackTrace
+library(NLP)
+Data Preparation
+*Sample the data and create the corpus
+
+subBlogs <- sample(blogs_text, size = 1000)
+subNews <- sample(news_text, size = 1000)
+subTwitter <- sample(Twit_text, size = 1000)
+sampledData <- c(subBlogs, subNews, subTwitter)
+#corpus <- VCorpus(VectorSource(sampledData))
+write sampled texts into text files for further analysis
+writeLines(sampledData, "C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/sampledData.txt")
+Clean Corpus (Remove punctuation, stopwords, whitespaces, numbers etc.)
+cleansing <- function (textcp) {
+  textcp <- tm_map(textcp, content_transformer(tolower))
+  textcp <- tm_map(textcp, stripWhitespace)
+  textcp <- tm_map(textcp, removePunctuation)
+  textcp <- tm_map(textcp, removeNumbers)
+  textcp
+}
+
+sampledData <- VCorpus(DirSource("C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_Shinyapp", encoding = "UTF-8"))
+Tokenize sampled text data
+sampledData <- cleansing(sampledData)
+Create TermDocumentMatrix
+Define function to make Ngrams
+tdm_Ngram <- function (textcp, n) {
+  NgramTokenizer <- function(x) {RWeka::NGramTokenizer(x, RWeka::Weka_control(min = n, max = n))}
+  tdm_ngram <- TermDocumentMatrix(textcp, control = list(tokenizer = NgramTokenizer))
+  tdm_ngram
+}
+Define function to extract the N grams and sort
+ngram_sorted_df <- function (tdm_ngram) {
+  tdm_ngram_m <- as.matrix(tdm_ngram)
+  tdm_ngram_df <- as.data.frame(tdm_ngram_m)
+  colnames(tdm_ngram_df) <- "Count"
+  tdm_ngram_df <- tdm_ngram_df[order(-tdm_ngram_df$Count), , drop = FALSE]
+  tdm_ngram_df
+}
+Catogrize NGrams
+tdm_1gram <- tdm_Ngram(sampledData, 1)
+tdm_2gram <- tdm_Ngram(sampledData, 2)
+tdm_3gram <- tdm_Ngram(sampledData, 3)
+tdm_4gram <- tdm_Ngram(sampledData, 4)
+Make NGrams tables from NGrams
+tdm_1gram_df <- ngram_sorted_df(tdm_1gram)
+tdm_2gram_df <- ngram_sorted_df(tdm_2gram)
+tdm_3gram_df <- ngram_sorted_df(tdm_3gram)
+tdm_4gram_df <- ngram_sorted_df(tdm_4gram)
+# Creat r-compressed files from data frame
+4Gram file
+quadgram <- data.frame(rows=rownames(tdm_4gram_df),count=tdm_4gram_df$Count)
+quadgram$rows <- as.character(quadgram$rows)
+quadgram_split <- strsplit(as.character(quadgram$rows),split=" ")
+quadgram <- transform(quadgram,first = sapply(quadgram_split,"[[",1),second = sapply(quadgram_split,"[[",2),third = sapply(quadgram_split,"[[",3), fourth = sapply(quadgram_split,"[[",4))
+quadgram <- data.frame(unigram = quadgram$first,bigram = quadgram$second, trigram = quadgram$third, quadgram = quadgram$fourth, freq = quadgram$count,stringsAsFactors=FALSE)
+write.csv(quadgram[quadgram$freq > 1,],"C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/quadgram.csv",row.names=F)
+quadgram <- read.csv("C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/quadgram.csv",stringsAsFactors = F)
+saveRDS(quadgram,"C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/quadgram.RData")
+*3Gram file
+
+ trigram <- data.frame(rows=rownames(tdm_3gram_df),count=tdm_3gram_df$Count)
+trigram$rows <- as.character(trigram$rows)
+trigram_split <- strsplit(as.character(trigram$rows),split=" ")
+trigram <- transform(trigram,first = sapply(trigram_split,"[[",1),second = sapply(trigram_split,"[[",2),third = sapply(trigram_split,"[[",3))
+trigram <- data.frame(unigram = trigram$first,bigram = trigram$second, trigram = trigram$third, freq = trigram$count,stringsAsFactors=FALSE)
+write.csv(trigram[trigram$freq > 1,],"C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/trigram.csv",row.names=F)
+trigram <- read.csv("C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/trigram.csv",stringsAsFactors = F)
+saveRDS(trigram,"C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/trigram.RData")
+*2Gram file
+
+bigram <- data.frame(rows=rownames(tdm_2gram_df),count=tdm_2gram_df$Count)
+bigram$rows <- as.character(bigram$rows)
+bigram_split <- strsplit(as.character(bigram$rows),split=" ")
+bigram <- transform(bigram,first = sapply(bigram_split,"[[",1),second = sapply(bigram_split,"[[",2))
+bigram <- data.frame(unigram = bigram$first,bigram = bigram$second,freq = bigram$count,stringsAsFactors=FALSE)
+write.csv(bigram[bigram$freq > 1,],"C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/bigram.csv",row.names=F)
+bigram <- read.csv("C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/bigram.csv",stringsAsFactors = F)
+saveRDS(bigram,"C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Capstone_ShinyApp/bigram.RData")
+Plan to Make shinyApp
+-Input a phrase (multiple words) in a text box input and outputs a prediction of the next word
+
+ui.R code:
+### Data Science_Capstone_final Project_ShinyApp ### This is Ui.R file for ShinyApp
+
+library(shiny)
+
+Define UI for application that draws a histogram
+shinyUI(fluidPage(
+
+# Application title
+titlePanel("Next Word Prediction", "Data Science_Capstone Project"),
+
+# Sidebar with a slider input for number of bins
+sidebarLayout(
+    sidebarPanel(
+      textInput("txt",label = "Enter a text to predict the next word", value = "", width = NULL, placeholder = NULL),
+      h4('Please use \'Submit\' to observe the predicted word.'),
+      h4('(Sample Input:\'What are you\' or \'We are doing\')'),
+      actionButton("Submit","Submit")
+    ),
+
+
+    mainPanel(
+       h3("Predicted next Word"),
+       h4("Phrase entered:"),
+       verbatimTextOutput("inputText"),
+       h4('Next predicted words'),
+       verbatimTextOutput("prediction"),
+               )
+)
+))
+
+server.R code:
+
+#library(shiny) #library(stringr) #library(sqldf)
+
+suppressWarnings(library(tm)) suppressWarnings(library(stringr)) suppressWarnings(library(shiny))
+
+#twoGrams <- read.csv(‘C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Final Project_Shinyapp/bigram.csv’, header = TRUE, stringsAsFactors = FALSE) #threeGrams <- read.csv(‘C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Final Project_Shinyapp/trigram.csv’, header = TRUE, stringsAsFactors = FALSE) #fourGrams <- read.csv(‘C:/Users/HP/Desktop/Grace R/Course 10/Coursera-SwiftKey/final/en_US/Final Project_Shinyapp/quadgram.csv’, header = TRUE, stringsAsFactors = FALSE)
+
+Load Quadgram,Trigram & Bigram Data frame files
+quadgram <- readRDS(“quadgram.RData”); trigram <- readRDS(“trigram.RData”); bigram <- readRDS(“bigram.RData”); #mesg <<- ""
+
+shinyServer(function(input, output) { outputinputText <- renderText({ input
+txt }, quoted = FALSE) observeEvent(inputSubmit, {  txt <- gsub("\'","\'\'",input
+txt) nwords <- str_count(txt, “\S+”) formattedTxt <- paste(unlist(strsplit(isolate(txt),’ ‘)), collapse =’_’) output$suggestions <- renderPrint({ if(nwords >= 5){ print(getPreds(formattedTxt, 5)) } else{
+
+            print(getPreds(formattedTxt, nwords + 1))
+        }
+    })
+})
+
+
+getPreds <- function(str, nGrams){
+    if (nGrams == 1) {
+        return('Not found')
+    }
+    if (length(unlist(strsplit(str, "_"))) > nGrams - 1) {
+        str <-
+            paste(tail(unlist(strsplit(str, "_")), nGrams - 1), collapse = '_')
+    }
+    if (nGrams == 5) {
+        query = sprintf("select Pred from fiveGrams where nGrams = '%s' order by Frequency desc limit 3",
+                        str)
+    }
+    else if (nGrams == 4) {
+        query = sprintf("select Pred from fourGrams where nGrams = '%s' order by Frequency desc limit 3",
+                        str)
+    }
+    else if (nGrams == 3) {
+        query = sprintf("select Pred from threeGrams where nGrams = '%s' order by Frequency desc limit 3",
+                        str)
+    }
+    else if (nGrams == 2) {
+        query = sprintf("select Pred from twoGrams where nGrams = '%s' order by Frequency desc limit 3",
+                        str)
+    }
+    res <- sqldf(query)
+    if (nrow(res) == 0) {
+        getPreds(str, nGrams - 1)
+    }
+    else {
+        return(res)
+    }
+}
